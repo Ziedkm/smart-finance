@@ -63,16 +63,18 @@ class ExpenseClassifier:
             lowercase=True,
             stop_words='english'
         )
+        # FIX: Removed 'multi_class' parameter for scikit-learn 1.5+
         self.model = LogisticRegression(
             max_iter=1000,
-            random_state=42,
-            multi_class='multinomial'
+            random_state=42
+            # multi_class='multinomial' is now default and automatic
         )
         self.label_encoder = LabelEncoder()
         self.is_trained = False
         
         if model_path:
             self.load_model(model_path)
+
     
     def _apply_rules(self, text: str) -> Tuple[Optional[str], float]:
         """
