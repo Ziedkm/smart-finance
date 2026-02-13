@@ -9,16 +9,16 @@ supabase==2.0.3
 postgrest==0.13.0
 psycopg2-binary==2.9.10
 
-# AI/ML Libraries
-scikit-learn==1.3.2
-numpy==1.24.3
-pandas==2.1.3
+# AI/ML Libraries (Updated for Python 3.13)
+scikit-learn>=1.5.0
+numpy>=1.26.0
+pandas>=2.2.0
 
 # NLP (lightweight for MVP)
 python-Levenshtein==0.23.0
 
 # Optional: Prophet for forecasting (post-MVP)
-prophet==1.1.5
+# prophet==1.1.5  # Comment out for now - likely no Python 3.13 wheels
 
 # Utilities
 python-dotenv==1.0.0
