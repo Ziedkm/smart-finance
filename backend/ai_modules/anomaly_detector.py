@@ -270,19 +270,93 @@ class AnomalyDetector:
                 })
         
         return sorted(anomalies, key=lambda x: x['anomaly_score'])[:10]  # Top 10
-    
-    def _generate_explanation(self, transaction: Dict, features: pd.Series) -> str:
-        """Generate human-readable explanation for anomaly"""
-        amount = transaction['amount']
-        category = transaction['category']
-        category_avg = self.feature_stats['category_avg'].get(category, amount)
+    def detect_single(
+        self,
+        transaction: Dict,
+        historical_transactions: List[Dict]
+    ) -> Dict:
+        """
+        Detect if a single transaction is anomalous based on historical data
         
-        if amount > category_avg * 2:
-            return f"Amount is {amount/category_avg:.1f}x your average {category} spend"
-        elif features['days_since_last'] < 1:
-            return "Multiple transactions on the same day"
+        Args:
+            transaction: Single transaction to check
+            historical_transactions: Historical transactions (for training/context)
+            
+        Returns:
+            Anomaly result dict
+        """
+        if len(historical_transactions) < 20:
+            raise ValueError("Need at least 20 historical transactions")
+        
+        # Train on historical data ONLY
+        self.train(historical_transactions)
+        
+        # Prepare features for the single transaction
+        features = self._prepare_features([transaction])
+        
+        if features.empty:
+            return {
+                'id': transaction.get('id'),
+                'is_anomaly': False,
+                'anomaly_score': 0.0,
+                'explanation': 'Insufficient data for detection'
+            }
+        
+        # Predict anomaly score
+        X_scaled = self.scaler.transform(features[self.feature_columns])
+        anomaly_score = self.model.score_samples(X_scaled)[0]
+        
+        # Convert score to 0-1 range (more negative = more anomalous)
+        # Typical scores range from -1 to 0
+        normalized_score = max(0, min(1, abs(anomaly_score)))
+        
+        # Check if anomalous (threshold based on contamination)
+        is_anomaly = anomaly_score < self.threshold
+        
+        # Generate explanation
+        explanation = self._generate_explanation(
+            transaction, 
+            historical_transactions,
+            normalized_score
+        )
+        
+        return {
+            'id': transaction.get('id'),
+            'is_anomaly': is_anomaly,
+            'anomaly_score': normalized_score,
+            'explanation': explanation
+        }
+
+
+    def _generate_explanation(
+        self,
+        transaction: Dict,
+        historical: List[Dict],
+        score: float
+    ) -> str:
+        """Generate human-readable explanation for anomaly"""
+        amount = transaction.get('amount', 0)
+        category = transaction.get('category', 'Unknown')
+        
+        # Calculate stats from historical data
+        category_txns = [t for t in historical if t.get('category') == category]
+        
+        if not category_txns:
+            return f"No historical {category} transactions to compare"
+        
+        avg_amount = sum(t.get('amount', 0) for t in category_txns) / len(category_txns)
+        max_amount = max(t.get('amount', 0) for t in category_txns)
+        
+        if amount > avg_amount * 3:
+            multiplier = amount / avg_amount
+            return f"Amount is {multiplier:.1f}x your average {category} spend"
+        elif amount > max_amount:
+            return f"This exceeds your highest {category} transaction ({max_amount:.2f})"
+        elif amount < avg_amount * 0.2:
+            return f"Unusually low amount for {category}"
         else:
-            return "Unusual transaction pattern detected"
+            return f"Unusual transaction pattern detected for {category}"
+
     
     def save_model(self, path: str):
         """Save trained model"""

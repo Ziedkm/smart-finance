@@ -8,8 +8,14 @@ from datetime import datetime, date
 from app.config import get_settings
 from ai_modules.expense_classifier import ExpenseClassifier
 from ai_modules.anomaly_detector import AnomalyDetector
-from ai_modules.forecaster import Forecaster
 from ai_modules.recommendation_engine import RecommendationEngine
+
+try:
+    from ai_modules.forecaster import FinancialForecaster  # Changed: correct class name
+    FORECASTER_AVAILABLE = True
+except ImportError as e:
+    FORECASTER_AVAILABLE = False
+    print(f"⚠️  Forecaster module not available - forecasting features disabled: {e}")
 
 settings = get_settings()
 
@@ -27,8 +33,14 @@ class AIService:
         if os.path.exists(settings.ANOMALY_DETECTOR_PATH):
             self.anomaly_detector.load_model(settings.ANOMALY_DETECTOR_PATH)
         
-        self.forecaster = Forecaster()
+        # Optional forecaster
+        if FORECASTER_AVAILABLE:
+            self.forecaster = FinancialForecaster()  # Changed: correct class name
+        else:
+            self.forecaster = None
+        
         self.recommendation_engine = RecommendationEngine()
+
     
     def classify_transaction(
         self,
@@ -78,39 +90,63 @@ class AIService:
             'top_3_predictions': top_3
         }
     
-    def detect_anomaly(
-        self,
-        transaction: Dict[str, Any],
-        user_history: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+    def detect_anomaly(self, transaction, user_history):
         """
-        Detect if transaction is anomalous
-        
-        Args:
-            transaction: Current transaction
-            user_history: User's historical transactions
-            
-        Returns:
-            Anomaly result if detected, None otherwise
+        Robust anomaly detection:
+        - Uses simple statistics per category (reliable, deterministic)
+        - Optionally can be combined with IsolationForest if you want
         """
-        # Combine current transaction with history
-        all_transactions = user_history + [transaction]
-        
-        # Detect anomalies
-        anomalies = self.anomaly_detector.batch_detect(all_transactions)
-        
-        # Check if current transaction is flagged
-        current_txn_id = transaction.get('id')
-        for anomaly in anomalies:
-            if anomaly.get('id') == current_txn_id:
-                return {
-                    'is_anomaly': True,
-                    'anomaly_score': anomaly.get('anomaly_score', 0.0),
-                    'explanation': anomaly.get('explanation', 'Unusual transaction pattern'),
-                    'severity': self._calculate_severity(anomaly.get('anomaly_score', 0.0))
-                }
-        
-        return None
+        if not user_history or len(user_history) < 10:
+            return None
+
+        amount = float(transaction.get("amount", 0) or 0)
+        category = transaction.get("category")
+
+        # Filter comparable history (same type/category if available)
+        hist = [t for t in user_history if t.get("transaction_type") == "expense"]
+        if category:
+            same_cat = [t for t in hist if t.get("category") == category]
+            if len(same_cat) >= 5:
+                hist = same_cat
+
+        amounts = [float(t.get("amount", 0) or 0) for t in hist if t.get("amount") is not None]
+        amounts = [a for a in amounts if a > 0]
+
+        if len(amounts) < 5:
+            return None
+
+        avg = sum(amounts) / len(amounts)
+        mx = max(amounts)
+        # std (population)
+        var = sum((a - avg) ** 2 for a in amounts) / len(amounts)
+        std = var ** 0.5
+
+        # Rules (tune these for your hackathon demo)
+        z = 0.0 if std == 0 else (amount - avg) / std
+        is_high_outlier = (amount > avg + 4 * std) or (amount > 3 * avg) or (amount > 1.5 * mx)
+        is_low_outlier = (amount < avg - 4 * std) and (amount < 0.3 * avg)
+
+        if not (is_high_outlier or is_low_outlier):
+            return None
+
+        # Score 0..1 (simple mapping)
+        magnitude = max(abs(z) / 10.0, 0.0)
+        anomaly_score = min(1.0, magnitude)
+
+        explanation = (
+            f"Amount {amount:.2f} is unusual vs your history "
+            f"(avg {avg:.2f}, max {mx:.2f}, std {std:.2f}, z {z:.2f})"
+        )
+
+        return {
+            "is_anomaly": True,
+            "anomaly_score": anomaly_score,
+            "severity": self._calculate_severity(anomaly_score),
+            "explanation": explanation,
+            "stats": {"count": len(amounts), "avg": avg, "max": mx, "std": std, "z": z},
+        }
+
+
     
     def forecast_expenses(
         self,
