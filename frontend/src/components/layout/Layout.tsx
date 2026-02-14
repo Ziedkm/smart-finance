@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
+import { BottomNav } from './BottomNav';
 import { ChatWidget } from '../chatbot/ChatWidget';
 
 interface LayoutProps {
@@ -8,33 +6,19 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-50">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
+      {/* Main content - full width */}
+      <main className="w-full min-h-screen">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {children}
+        </div>
+      </main>
 
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Bottom Navigation */}
+      <BottomNav />
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6">
-          <div className="w-full max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-
-      {/* Chatbot widget */}
+      {/* Chatbot Widget */}
       <ChatWidget />
     </div>
   );

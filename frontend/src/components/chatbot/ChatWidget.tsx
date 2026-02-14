@@ -90,19 +90,19 @@ export function ChatWidget() {
 
   return (
   <>
-    {/* Floating button */}
+    {/* Floating button - adjusted for bottom nav */}
     {!isOpen && (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 p-3 sm:p-4 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all hover:scale-110"
+        className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 z-40 p-3 sm:p-4 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all hover:scale-110"
       >
         <ChatBubbleLeftRightIcon className="h-5 w-5 sm:h-6 sm:w-6" />
       </button>
     )}
 
-    {/* Chat window - responsive */}
+    {/* Chat window - adjusted for bottom nav */}
     {isOpen && (
-      <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full h-full sm:w-96 sm:h-[600px] bg-white sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-gray-200">
+      <div className="fixed bottom-20 sm:bottom-28 right-0 sm:right-6 z-40 w-full h-[calc(100vh-6rem)] sm:w-96 sm:h-[600px] sm:max-h-[calc(100vh-10rem)] bg-white sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-gray-200">
           {/* Header */}
           <div className="bg-primary-600 text-white p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">

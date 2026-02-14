@@ -11,7 +11,8 @@ from app.api import (
     transactions,
     budgets,
     goals,
-    dashboard
+    dashboard,
+    recommendations
 )
 
 settings = get_settings()
@@ -41,7 +42,7 @@ app.include_router(goals.router, prefix=settings.API_V1_PREFIX)
 app.include_router(dashboard.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chatbot.router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
-
+app.include_router(recommendations.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/")
