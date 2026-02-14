@@ -125,11 +125,26 @@ class ExpenseClassifier:
         if len(texts) < 10:
             raise ValueError("Need at least 10 training samples")
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            texts, labels, test_size=0.2, random_state=42, stratify=labels
-        )
-        
+        # Check class distribution and handle rare classes
+        from collections import Counter
+        class_counts = Counter(labels)
+        min_samples = min(class_counts.values())
+
+        # Split data (with or without stratification based on class sizes)
+        if min_samples >= 2:
+            # Stratified split if all classes have at least 2 samples
+            X_train, X_test, y_train, y_test = train_test_split(
+                texts, labels, test_size=0.2, random_state=42, stratify=labels
+            )
+        else:
+            # Regular split if some classes have only 1 sample
+            print(f"   ⚠️  Some categories have <2 samples, using non-stratified split")
+            print(f"   Classes with 1 sample: {[cls for cls, cnt in class_counts.items() if cnt == 1]}")
+            X_train, X_test, y_train, y_test = train_test_split(
+                texts, labels, test_size=0.2, random_state=42, stratify=None
+            )
+
+
         # Encode labels
         y_train_encoded = self.label_encoder.fit_transform(y_train)
         y_test_encoded = self.label_encoder.transform(y_test)

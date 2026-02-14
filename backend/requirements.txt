@@ -23,3 +23,14 @@ python-dotenv>=1.0.0
 
 # Optional: Prophet for forecasting (post-MVP)
 # prophet==1.1.5  # Comment out for now - likely no Python 3.13 wheels
+pydantic-settings==2.1.0
+
+# JWT Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+joblib==1.3.2
+
+# Background Jobs
+apscheduler==3.10.4
+
